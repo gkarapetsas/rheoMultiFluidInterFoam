@@ -1,16 +1,15 @@
 EXE_INC = \
     -IalphaContactAngle \
     -I$(LIB_SRC)/transportModels \
-    -I$(LIB_SRC)/transportModels/incompressible/lnInclude \
-    -I$(LIB_SRC)/transportModels/interfaceProperties/lnInclude \
+    -I$(LIB_SRC)/transportModels/lnInclude \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/meshTools/lnInclude \
-    -I../../rheolibs/constitutiveEquations/lnInclude \
-    -I../../rheolibs/gaussDefCmpwConvectionScheme/lnInclude \
-    -I../../rheolibs/boundaryConditions/lnInclude \
-    -I../../rheolibs/postProcessing/postProcUtils/lnInclude \
-    -I../../rheolibs/fvmb/lnInclude \
-    -I../../rheolibs/sparseMatrixSolvers/lnInclude \
+    -I../../../libs/constitutiveEquations/lnInclude \
+    -I../../../libs/gaussDefCmpwConvectionScheme/lnInclude \
+    -I../../../libs/boundaryConditions/lnInclude \
+    -I../../../libs/postProcessing/postProcUtils/lnInclude \
+    -I../../../libs/fvmb/lnInclude \
+    -I../../../libs/sparseMatrixSolvers/lnInclude \
     -isystem$(EIGEN_RHEO) \
     -isystem$(PETSC_DIR)/$(PETSC_ARCH)/include \
     -isystem$(PETSC_DIR)/include \
@@ -19,7 +18,6 @@ EXE_INC = \
 
 LIB_LIBS = \
     -linterfaceProperties \
-    -lincompressibleTransportModels \
     -lfiniteVolume \
     -lmeshTools \
     -L$(FOAM_USER_LIBBIN) -lconstitutiveEquations \

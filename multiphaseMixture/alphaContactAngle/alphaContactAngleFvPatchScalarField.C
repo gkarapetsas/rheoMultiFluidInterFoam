@@ -105,7 +105,9 @@ alphaContactAngleFvPatchScalarField::alphaContactAngleFvPatchScalarField
     zeroGradientFvPatchScalarField(p, iF),
     thetaProps_(dict.lookup("thetaProperties"))
 {
+    Info<< "Reading thetaProp\n" << endl;
     evaluate();
+    Info<< "Read thetaProp\n" << endl;
 }
 
 

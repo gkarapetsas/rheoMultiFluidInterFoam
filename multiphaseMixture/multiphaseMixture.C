@@ -36,8 +36,7 @@ License
 
 // * * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * //
 
-const Foam::scalar Foam::multiphaseMixture::convertToRad =
-    Foam::constant::mathematical::pi/180.0;
+const Foam::scalar Foam::multiphaseMixture::convertToRad = Foam::constant::mathematical::pi/180.0;
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -74,7 +73,8 @@ Foam::multiphaseMixture::multiphaseMixture
             IOobject::NO_WRITE
         )
     ),
-
+    
+    Info<< "Reading start\n" << endl;
     phases_(lookup("phases"), phase::iNew(U, phi)),
 
     mesh_(U.mesh()),
@@ -1006,11 +1006,13 @@ void Foam::multiphaseMixture::solveAlphas
     phic = min(cAlpha*phic, max(phic));
 
     PtrList<surfaceScalarField> alphaPhiCorrs(phases_.size());
+    UPtrList<const volScalarField> alphas(phases_.size());
     int phasei = 0;
 
     forAllIter(PtrDictionary<phase>, phases_, iter)
     {
         phase& alpha = iter();
+	alphas.set(phasei, &alpha);
 
         alphaPhiCorrs.set
         (
@@ -1068,7 +1070,7 @@ void Foam::multiphaseMixture::solveAlphas
         phasei++;
     }
 
-    MULES::limitSum(alphaPhiCorrs);
+    MULES::limitSum(alphas, alphaPhiCorrs, phi_);
 
     rhoPhi_ = dimensionedScalar(dimensionSet(1, 0, -1, 0, 0), 0);
 
@@ -1133,7 +1135,7 @@ void Foam::multiphaseMixture::solveAlphas
 
 bool Foam::multiphaseMixture::read()
 {
-    if (transportModel::read())
+    if (regIOobject::read())
     {
         bool readOK = true;
 

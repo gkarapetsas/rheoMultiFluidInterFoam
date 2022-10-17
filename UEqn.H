@@ -2,33 +2,33 @@
 
     fvVectorMatrix UEqn
     (
-        fvm::ddt(rho, U)
-      + fvm::div(rhoPhi, U)
-      + MRF.DDt(rho, U)   
-//      + turbulence->divDevRhoReff(rho, U)  
+        fvm::ddt(rho, U) + fvm::div(rhoPhi, U)
+      + MRF.DDt(rho, U)
+      + turbulence->divDevTau(rho, U)
      ==
-        fvOptions(rho, U)
-      + mixture.divTauMF(U)   
+        fvModels.source(rho, U)
     );
 
     UEqn.relax();
 
-    fvOptions.constrain(UEqn);
+    fvConstraints.constrain(UEqn);
 
-     
-    spSolverU->solve
-    (
-      UEqn
-      ==
-      fvc::reconstruct
-       (
-         (
-            mixture.surfaceTensionForce()
-          - ghf*fvc::snGrad(rho)
-          - fvc::snGrad(p_rgh)
-         ) * mesh.magSf()
-       )
-    );
+    if (pimple.momentumPredictor())
+    {
+        solve
+        (
+            UEqn
+         ==
+            fvc::reconstruct
+            (
+                (
+                    mixture.surfaceTensionForce()
+                  - ghf*fvc::snGrad(rho)
+                  - fvc::snGrad(p_rgh)
+                ) * mesh.magSf()
+            )
+        );
 
-   fvOptions.correct(U);
+        fvConstraints.constrain(U);
+    }
    

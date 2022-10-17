@@ -1,0 +1,5 @@
+SOURCE += phase/phase.C
+SOURCE += alphaContactAngle/alphaContactAngleFvPatchScalarField.C
+SOURCE += multiphaseMixture.C
+
+LIB = $(FOAM_USER_LIBBIN)/librheoMultiFluidInterFoam

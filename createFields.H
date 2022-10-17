@@ -28,6 +28,7 @@ volVectorField U
 
 #include "createPhi.H"
 
+Info<< "Reading mixture\n" << endl;
 multiphaseMixture mixture(U, phi);
 
 // Need to store rho for ddt(rho, U)
@@ -45,9 +46,9 @@ volScalarField rho
 rho.oldTime();
 
 // Construct incompressible turbulence model
-autoPtr<incompressible::turbulenceModel> turbulence
+autoPtr<incompressible::momentumTransportModel> turbulence
 (
-    incompressible::turbulenceModel::New(U, phi, mixture)
+    incompressible::momentumTransportModel::New(U, phi, mixture)
 );
 
 
@@ -69,16 +70,7 @@ volScalarField p
     p_rgh + rho*gh
 );
 
-label pRefCell = 0;
-scalar pRefValue = 0.0;
-setRefCell
-(
-    p,
-    p_rgh,
-    pimple.dict(),
-    pRefCell,
-    pRefValue
-);
+pressureReference pressureReference(p, p_rgh, pimple.dict());
 
 if (p_rgh.needReference())
 {
@@ -86,11 +78,14 @@ if (p_rgh.needReference())
     (
         "p",
         p.dimensions(),
-        pRefValue - getRefCellValue(p, pRefCell)
+        pressureReference.refValue()
+      - getRefCellValue(p, pressureReference.refCell())
     );
+    p_rgh = p - rho*gh;
 }
 
 mesh.setFluxRequired(p_rgh.name());
 
 #include "createMRF.H"
-#include "createFvOptions.H"
+#include "createFvModels.H"
+#include "createFvConstraints.H"

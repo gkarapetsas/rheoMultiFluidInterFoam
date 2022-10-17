@@ -39,11 +39,12 @@ SourceFiles
 
 #include "volFields.H"
 #include "dictionaryEntry.H"
-#include "incompressible/viscosityModels/viscosityModel/viscosityModel.H"
+//#include "incompressible/viscosityModels/viscosityModel/viscosityModel.H"
+#include "viscosityModel.H"
 /*
 Added by cdd
 */
-#include "../../../constitutiveEquations/lnInclude/constitutiveModel.H" 
+#include "constitutiveModel.H" 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -194,7 +195,7 @@ Added by CDD
         {
             return phaseEqModel_->divTauS(U,alpha);
         }
-
+/*
         tmp<fvVectorMatrix> myDivTauS(const volVectorField& U, const volScalarField& alpha, const volScalarField& myEta) const
         {
             return phaseEqModel_->myDivTauS(U,alpha,myEta);
@@ -204,7 +205,7 @@ Added by CDD
         {
             return phaseEqModel_->myNu();
         }
-        
+*/        
         /*
         tmp<dimensionedScalar> myEtaS_() const
         {

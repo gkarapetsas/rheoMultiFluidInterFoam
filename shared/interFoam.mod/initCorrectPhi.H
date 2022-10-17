@@ -1,5 +1,3 @@
-tmp<volScalarField> rAU;
-
 if (correctPhi)
 {
     rAU = new volScalarField
@@ -16,15 +14,17 @@ if (correctPhi)
         dimensionedScalar(dimTime/dimDensity, 1)
     );
 
+    correctUphiBCs(U, phi, true);
+
     CorrectPhi
     (
+       	phi,
         U,
-        phi,
         p_rgh,
         surfaceScalarField("rAUf", fvc::interpolate(rAU())),
         geometricZeroField(),
+	pressureReference,
         pimple,
-        false
     );
 
     #include "continuityErrs.H"
@@ -33,13 +33,13 @@ else
 {
     CorrectPhi
     (
-        U,
         phi,
+        U,
         p_rgh,
         dimensionedScalar(dimTime/rho.dimensions(), 1),
         geometricZeroField(),
+	pressureReference,
         pimple,
-        false
     );
 
     #include "continuityErrs.H"

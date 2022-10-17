@@ -59,9 +59,13 @@
             fvm::laplacian(rAtU(), p_rgh, "laplacian(p|rAtU)") == fvc::div(phiHbyA)
         );
 
-        p_rghEqn.setReference(pRefCell, getRefCellValue(p_rgh, pRefCell));
+        p_rghEqn.setReference
+	(
+	   pressureReference.refCell(),
+	   getRefCellValue(p_rgh, pressureReference.refCell())
+	);
 
-        spSolverprgh->solve(p_rghEqn); 
+        p_rghEqn.solve(); 
 
         if (pimple.finalNonOrthogonalIter())
         {
@@ -79,7 +83,7 @@
                U = HbyA + rAU()*fvc::reconstruct((phig - p_rghEqn.flux())/rAUf);
             }
             U.correctBoundaryConditions();
-            fvOptions.correct(U);
+            fvConstraints.constrain(U);
         }
     }
 
@@ -99,7 +103,7 @@
         (
             "p",
             p.dimensions(),
-            pRefValue - getRefCellValue(p, pRefCell)
+            pressureReference.refValue() - getRefCellValue(p, pressureReference.refCell())
         );
         p_rgh = p - rho*gh;
     }

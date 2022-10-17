@@ -42,7 +42,8 @@ SourceFiles
 #ifndef multiphaseMixture_H
 #define multiphaseMixture_H
 
-#include "incompressible/transportModel/transportModel.H"
+#include "volFields.H"
+#include "kinematicTransportModel.H"
 #include "IOdictionary.H"
 #include "phase.H"
 #include "PtrDictionary.H"
@@ -61,16 +62,10 @@ namespace Foam
 class multiphaseMixture
 :
     public IOdictionary,
-    public transportModel
+    public kinematicTransportModel
 {
 public:
 
-
-///////////////////////////////////////////////////////////////
-
-
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////    
     class interfacePair
     :
         public Pair<word>
