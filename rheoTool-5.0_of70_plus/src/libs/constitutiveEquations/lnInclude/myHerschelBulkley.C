@@ -1,0 +1,296 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | Copyright held by original author
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the
+    Free Software Foundation; either version 2 of the License, or (at your
+    option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM; if not, write to the Free Software Foundation,
+    Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+\*---------------------------------------------------------------------------*/
+
+#include "myHerschelBulkley.H"
+#include "addToRunTimeSelectionTable.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace constitutiveEqs 
+{
+    defineTypeNameAndDebug(myHerschelBulkley, 0);
+    addToRunTimeSelectionTable(constitutiveEq, myHerschelBulkley, dictionary);
+}
+}
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+Foam::constitutiveEqs::myHerschelBulkley::myHerschelBulkley
+(
+    const word& name,
+    const volVectorField& U,
+    const surfaceScalarField& phi,
+    const dictionary& dict
+)
+:
+    constitutiveEq(name, U, phi),
+    rho_(dict.lookup("rho")),
+    reg_(dict.lookup("PapanastasiouRegularization")),
+    tau0_(dict.lookup("tau0")),
+    eta0_(dict.lookup("eta0")),
+    k_(dict.lookup("k")),
+    n_(dict.lookup("n")),
+    m_(reg_ == true ? dict.lookup("m") : dimensionedScalar("1",dimTime,1.) ),
+    IItauD_
+    (
+        IOobject
+        (
+            "IItauD" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        strainRate()*dimensionedScalar("zeroU", dimensionSet(1, -1, -1, 0, 0, 0, 0), 0) //Just to ensure dimensions and BCs,
+    ),
+    tauD_
+    (
+        IOobject
+        (
+            "tauD" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        U.mesh(),
+        dimensionedSymmTensor
+        (
+                "0",
+                dimensionSet(1, -1, -2, 0, 0, 0, 0),
+                pTraits<symmTensor>::zero  
+        ),
+        extrapolatedCalculatedFvPatchField<symmTensor>::typeName
+    ),
+     IItauALL_
+    (
+        IOobject
+        (
+            "IItauALL" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        strainRate()*dimensionedScalar("zeroU", dimensionSet(1, -1, -1, 0, 0, 0, 0), 0) //Just to ensure dimensions and BCs,
+    ),
+        IItau_
+    (
+        IOobject
+        (
+            "IItau" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        strainRate()*dimensionedScalar("zeroU", dimensionSet(1, -1, -1, 0, 0, 0, 0), 0) //Just to ensure dimensions and BCs,
+    ),
+            tau2_
+    (
+        IOobject
+        (
+            "tau2" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        U.mesh(),
+        dimensionedSymmTensor
+        (
+                "0",
+                dimensionSet(1, -1, -2, 0, 0, 0, 0),
+                pTraits<symmTensor>::zero  
+        ),
+        extrapolatedCalculatedFvPatchField<symmTensor>::typeName
+    ),
+
+        tau_
+    (
+        IOobject
+        (
+            "tau" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        U.mesh(),
+        dimensionedSymmTensor
+        (
+                "0",
+                dimensionSet(1, -1, -2, 0, 0, 0, 0),
+                pTraits<symmTensor>::zero  
+        ),
+        extrapolatedCalculatedFvPatchField<symmTensor>::typeName
+    ),
+    eta_
+    (
+        IOobject
+        (
+            "eta" + name,
+            U.time().timeName(),
+            U.mesh(),
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        strainRate()*dimensionedScalar("zeroU", dimensionSet(1, -1, 0, 0, 0, 0, 0), 0) //Just to ensure dimensions and BCs
+    ),
+    thermoEtaPtr_(thermoFunction::New("thermoEta", U.mesh(), dict)),
+    dims_(dict.lookupOrDefault<vector>("dims", U.mesh().solutionD() )),
+    nDims(scalar(dims_.x()+dims_.y()+dims_.z())),
+    Itensor("Identity", dimless, symm(tensor::I)),
+    writeII_(dict.lookupOrDefault<Switch>("writeSecondInvariantTauDev", true))
+
+{
+    // Adjust Itensor
+    Itensor.value().xx() = dims_.x();
+    Itensor.value().yy() = dims_.y();
+    Itensor.value().zz() = dims_.z();
+
+  // Initialize eta_
+  correct();
+}
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::constitutiveEqs::myHerschelBulkley::correct()
+{
+
+//   Info<< "eneter rheo hb" <<endl;
+   volScalarField
+   strainRate_ =
+   max
+   (
+       strainRate(),
+       dimensionedScalar("VSMALL", dimless/dimTime, VSMALL)
+   );
+ //      Info<< "eneter rheo hb2" <<endl;
+   dimensionedScalar tone("tone", dimTime, 1.0);
+   dimensionedScalar rtone("rtone", dimless/dimTime, 1.0);
+   dimensionedScalar rsmall_("rtone", dimless/dimTime, 1.0e-16);
+   //     Info<< "eneter rheo hb3" <<endl;
+   if (reg_)
+   {
+     eta_ =
+     min
+     (
+       eta0_,
+       (k_*rtone*pow(tone*strainRate_, n_) + tau0_* (1. - exp(-m_*strainRate_)) )/(strainRate_+rsmall_)
+     );
+   }
+   else
+   { 
+//         Info<< "eneter rheo hb4" <<endl;
+  //              Info<< eta0_ <<endl;
+    //                     Info<< k_<<endl;
+      //                                          Info<< n_<<endl;
+        // Info<< rtone<<endl;
+          // Info<< tone<<endl;
+            //          Info<< strainRate_<<endl;
+           
+     eta_ =
+     min
+     (
+       eta0_,
+       (tau0_ + k_*rtone*pow(tone*strainRate_, n_))/(strainRate_+rsmall_)
+     );
+   }
+//      Info<< "eneter rheo hb5" <<endl;
+//   Info<< eta_ <<endl;
+
+   // Update viscosity for non-isothermal flow
+   thermoEtaPtr_->multiply(eta_);
+
+if (eta_.time().outputTime())
+     strainRate_.write(); 
+if (eta_.time().outputTime())
+     eta_.write(); 
+     
+     
+   volTensorField L = fvc::grad(U());
+   
+   tauD_=eta()*(symm(L+L.T()) - (2./3.)*tr(L)*symmTensor::I);    //tauTotal();
+    if (writeII_ && tauD_.time().outputTime())
+     {
+       tauD_.write();
+     }      
+   tau2_=eta()*(symm(L+L.T()));    //tauTotal();
+    if (writeII_ && tau2_.time().outputTime())
+     {
+       tau2_.write();
+     }     
+     
+     
+    // 2nd invariant of deviatoric stress  
+    IItauD_ = Foam::mag(tau_-Itensor*tr(tau_)/nDims)/Foam::sqrt(2.);
+    if (writeII_ && tau_.time().outputTime()) IItauD_.write();
+    // 2nd invariant of deviatoric stress  
+    IItau_ = Foam::mag(tau2_-Itensor*tr(tau2_)/nDims)/Foam::sqrt(2.);
+    if (writeII_ && tau2_.time().outputTime()) IItau_.write();
+    // 2nd invariant of deviatoric stress  
+    IItauALL_ = Foam::mag(tau2_)/Foam::sqrt(2.);
+    if (writeII_ && tau2_.time().outputTime()) IItauALL_.write();
+
+
+//     {
+//       tauDMag.rename("II_tauD");
+//       tauDMag.write();
+     //}
+
+     
+//if (eta_.time().outputTime())
+//     tau_.write();
+
+Info<< " correct() in myHerschel-Bulkley of rheoTool!" << endl;
+
+
+
+}
+
+
+/*
+Added by CDD
+*/
+
+/*
+//Foam::tmp<Foam::fvVectorMatrix> Foam::constitutiveEqs::Newtonian::divTau
+Foam::tmp<Foam::volScalarField> Foam::constitutiveEqs::HerschelBulkley::myNuCalc() const
+{
+
+   correct();
+   return rho_*eta_;
+}
+*/
+
+/*
+*/
+
+
+// ************************************************************************* //

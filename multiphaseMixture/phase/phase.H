@@ -43,7 +43,7 @@ SourceFiles
 /*
 Added by cdd
 */
-#include "../../../constitutiveEquations/lnInclude/constitutiveModel.H" 
+#include "constitutiveModel.H" 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
