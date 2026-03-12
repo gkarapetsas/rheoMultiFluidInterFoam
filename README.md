@@ -19,3 +19,4 @@ Citing
 ===========
 
 C. Dritselis and G. Karapetsas, "Open-source finite volume solvers for multiphase (n-phase) flows involving either Newtonian or non-Newtonian complex fluids", Computers & Fluids, 245 (2022) 105590
+C. Dritselis and G. Karapetsas, "Wetting dynamics of droplets on a layer of viscoplastic material", Physics of Fluids, 37 (2025) 053107
